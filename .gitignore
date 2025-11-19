@@ -1,0 +1,84 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# JetBrains / WebStorm
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor swap/backup files
+*~
+*.swp
+*.swo
+*.tmp
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.pyre/
+.pytype/
+
+# Python packaging/build artifacts
+build/
+dist/
+pip-wheel-metadata/
+.eggs/
+*.egg-info/
+.python-version
+
+# Virtual environments (guard against committing local venvs)
+.venv/
+venv/
+ENV/
+env/
+.env/
+env.bak/
+venv.bak/
+**/.venv/
+**/venv/
+**/env/
+
+# Sphinx / Read the Docs local builds
+docs/_build/
+docs/build/
+docs/**/_build/
+docs/**/.doctrees/
+docs/**/_autosummary/
+docs/_autosummary/
+.doctrees/
+.autosummary/
+
+# Deno (no repo-local cache by default, but ignore if present)
+deno-dir/
+.deno/
+
+# Coverage outputs (if used)
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+
+# Front-end build artifacts (if added later)
+node_modules/
+dist/
+.tmp/
+*.map

@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2025 hamsci-mon contributors
+sphinx>=7.4
+furo>=2024.8.6
+myst-parser>=3.0.1
+sphinx-copybutton>=0.5.2
+# Optional live-reload for local docs dev
+sphinx-autobuild>=2024.4.16

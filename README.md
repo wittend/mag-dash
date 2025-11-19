@@ -1,6 +1,9 @@
+<p align="center">
+  <img src="Strawman Magnetometer Dashboard (UI).png" alt="mag-dash sample" width="600" />
+</p>
+
 mag-dash
 ========
-
 A Deno-driven UI dashboard to visualize ground magnetometer time series data, per the requirements in `docs/requirements.md`.
 
 Features

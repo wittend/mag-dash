@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/Strawman Magnetometer Dashboard (UI).png" alt="mag-dash sample" width="700" />
+  <img src="docs/Strawman_Magnetometer_Dashboard.jpg" alt="mag-dash screenshot" width="700" />
 </p>
 
 mag-dash

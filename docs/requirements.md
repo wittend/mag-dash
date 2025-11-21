@@ -64,3 +64,29 @@ Precision and rounding
 * To present a resizeable window showing a scrollable history of instantaneous samples ordered by their timestamps.
 
 * The history window shows rows and columns demarcated with borders as in a spreadsheet
+
+We got the layout working for now for this project.  But there are still things that need 
+to be worked on. First I want to change the selection box on the new source page to maintain 
+a history in local storage for the last 10 selections for the recently used Websocket URLs, 
+Local Files, and the device paths used.   I would also like to have the local file browser 
+to default to allow all file extensions.
+
+I see some of what I need.  But selecting a local file seems to lock the page so badly 
+that the browser completely hangs and gives a "web page not responding" popup and I have 
+to kill the page.  I cannot see the problem in the dev tools.
+
+I don't want the text. "Note: browsers cannot auto-open past files; select to recall the 
+name only." to appear on the configuration page.  I Would like an SVG spinner to appear 
+while a local file is being loaded.  I want the file's name to replace the words "New Source" 
+in the tab once it is loaded.  This file name can be in a slightly 
+smaller font and or elipsized'
+
+I don't like the phrase 'recent files" appearing above the recent files dropdown which it
+does now.  I also don't like the fact that the "local device" and 'Websocket URL' boxes 
+are hidden when other 'modes' are chosen.  I would like a new leftmost column in the 
+history window that just shows the integer value of the lin's position in the loaded set.  
+
+Ok, I see some improvement.  I would really like for the current page to remain selected 
+when the local file has completed loading. Also, I don't see an x-scale (seconds) for the 
+plotted data. I need that. It can be smallbut it must be synchronized with the already 
+synchronized plots.

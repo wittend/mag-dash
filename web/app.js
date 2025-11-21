@@ -1,5 +1,9 @@
 const LS_KEY = "magdash.config.v1";
 const LS_PANES_KEY = "magdash.panes.v1"; // persist per-tab state (id, title, splitter width)
+// Recent history keys (last 10)
+const LS_HIST_WS = "magdash.history.ws.v1";
+const LS_HIST_FILES = "magdash.history.files.v1";
+const LS_HIST_DEV = "magdash.history.dev.v1";
 
 function loadConfig() {
   try {
@@ -22,6 +26,30 @@ function prefersDark() {
 
 function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
+}
+
+// --- Recent history helpers ---
+function getHistory(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter(v => typeof v === 'string' && v.trim().length > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(key, arr) {
+  try { localStorage.setItem(key, JSON.stringify(arr.slice(0, 10))); } catch {}
+}
+
+function pushHistory(key, value) {
+  const v = (value || "").trim();
+  if (!v) return;
+  const arr = getHistory(key);
+  const filtered = [v, ...arr.filter(x => x !== v)];
+  saveHistory(key, filtered);
 }
 
 function h(tag, attrs = {}, ...children) {
@@ -70,8 +98,10 @@ class SourcePane {
   }
 
   tabEl() {
-    const btn = h('button', { class: 'tab', role: 'tab', id: `tab-${this.id}` },
-      h('span', { class: 'ti ti-radio' }), ' ', this.title);
+    const btn = h('button', { class: 'tab', role: 'tab', id: `tab-${this.id}`, title: this.title },
+      h('span', { class: 'ti ti-radio' }), ' ',
+      h('span', { class: 'tab-title' }, this.title)
+    );
     btn.addEventListener('click', () => this.activateCb(this));
     return btn;
   }
@@ -86,31 +116,68 @@ class SourcePane {
       h('option', { value: 'device' }, 'Local Device'),
     );
     const urlInput = h('input', { type: 'url', placeholder: 'wss://example/ws' });
-    const fileInput = h('input', { type: 'file', accept: '.jsonl,.txt,application/json' });
+    // Allow all file extensions by default (no accept attribute)
+    const fileInput = h('input', { type: 'file' });
     fileInput.style.display = 'none';
     const skipInput = h('input', { type: 'number', min: '0', value: '0', size: '3', inputmode: 'numeric', class: 'w-ch-3' });
-    const deviceInput = h('input', { type: 'text', placeholder: '/dev/ttyUSB0', style: 'display:none' });
+    const deviceInput = h('input', { type: 'text', placeholder: '/dev/ttyUSB0' });
+
+    // Attach datalists for URL and device histories
+    const urlListId = `dl-ws-${this.id}`;
+    const devListId = `dl-dev-${this.id}`;
+    const urlDataList = h('datalist', { id: urlListId });
+    const devDataList = h('datalist', { id: devListId });
+    urlInput.setAttribute('list', urlListId);
+    deviceInput.setAttribute('list', devListId);
+
+    const populateDataList = (dl, items) => {
+      dl.innerHTML = '';
+      for (const it of items.slice(0, 10)) dl.append(h('option', { value: it }));
+    };
+    populateDataList(urlDataList, getHistory(LS_HIST_WS));
+    populateDataList(devDataList, getHistory(LS_HIST_DEV));
+
+    // Recent files UI (cannot prefill file input): show a small select list of recent file names
+    const recentFilesWrap = h('div', { class: 'small' });
+    const recentFilesSelect = h('select', { class: 'w-100' }, h('option', { value: '' }, '-- choose recent file name --'));
+    const refreshRecentFiles = () => {
+      const items = getHistory(LS_HIST_FILES);
+      // Reset options
+      recentFilesSelect.innerHTML = '';
+      recentFilesSelect.append(h('option', { value: '' }, items.length ? '-- choose recent file name --' : 'No recent files'));
+      for (const it of items.slice(0, 10)) {
+        recentFilesSelect.append(h('option', { value: it }, it));
+      }
+    };
+    refreshRecentFiles();
+    // Only show the dropdown; omit any label text like "Recent files"
+    recentFilesWrap.append(recentFilesSelect);
 
     modeSel.addEventListener('change', () => {
       this.mode = modeSel.value;
       const isFile = this.mode === 'file';
-      const isWs = this.mode === 'ws';
-      const isDev = this.mode === 'device';
-      urlInput.style.display = isWs ? 'block' : 'none';
+      // Keep WebSocket URL and Device path inputs visible at all times
+      urlInput.style.display = 'block';
+      deviceInput.style.display = 'block';
+      // Toggle only the file input by mode
       fileInput.style.display = isFile ? 'block' : 'none';
-      deviceInput.style.display = isDev ? 'block' : 'none';
     });
 
     const connectBtn = h('button', { class: 'btn primary' }, h('span', { class: 'ti ti-plug-connected' }), ' Connect');
     const abandonBtn = h('button', { class: 'btn' }, h('span', { class: 'ti ti-trash' }), ' Abandon');
 
+    // Inline SVG spinner (hidden by default); shown during local file loading
+    const spinner = h('svg', { class: 'spinner', viewBox: '0 0 50 50', 'aria-hidden': 'true' },
+      h('circle', { cx: '25', cy: '25', r: '20', stroke: 'currentColor', 'stroke-width': '4', fill: 'none', 'stroke-linecap': 'round' })
+    );
+
     const form = h('div', { class: 'card left-pane' },
       h('div', { class: 'field' }, h('label', {}, 'Mode'), modeSel),
-      h('div', { class: 'field' }, h('label', {}, 'WebSocket URL'), urlInput),
-      h('div', { class: 'field' }, h('label', {}, 'Local file'), fileInput),
-      h('div', { class: 'field' }, h('label', {}, 'Device path'), deviceInput),
+      h('div', { class: 'field' }, h('label', {}, 'WebSocket URL'), urlInput, urlDataList),
+      h('div', { class: 'field' }, h('label', {}, 'Local file'), fileInput, recentFilesWrap),
+      h('div', { class: 'field' }, h('label', {}, 'Device path'), deviceInput, devDataList),
       h('div', { class: 'field' }, h('label', {}, 'Skip header lines'), skipInput),
-      h('div', { class: 'row' }, abandonBtn, connectBtn),
+      h('div', { class: 'row' }, abandonBtn, connectBtn, spinner),
     );
 
     // Right: charts
@@ -119,6 +186,7 @@ class SourcePane {
       this.chartEl('Y (nT)', 'y'),
       this.chartEl('Z (nT)', 'z'),
       this.chartEl('Temp (°C)', 'temp'),
+      this.timeAxisEl(),
     );
 
     // Vertical splitter between left (form) and right (charts)
@@ -127,6 +195,7 @@ class SourcePane {
     // History table
     const table = h('table', { class: 'table' },
       h('thead', {}, h('tr', {},
+        h('th', {}, '#'),
         h('th', {}, 'Timestamp (UTC)'),
         h('th', {}, 'X (nT)'),
         h('th', {}, 'Y (nT)'),
@@ -211,14 +280,22 @@ class SourcePane {
       if (this.mode === 'ws') {
         const url = urlInput.value.trim();
         if (!url) return alert('Enter a WebSocket URL');
+        // Save history and update datalist
+        pushHistory(LS_HIST_WS, url);
+        populateDataList(urlDataList, getHistory(LS_HIST_WS));
         await this.connectWs(url);
       } else if (this.mode === 'file') {
         const file = fileInput.files?.[0];
         if (!file) return alert('Choose a file');
+        // Save file name to history and refresh UI
+        pushHistory(LS_HIST_FILES, file.name || 'unnamed');
+        refreshRecentFiles();
         await this.loadFile(file, skip);
       } else if (this.mode === 'device') {
         const path = deviceInput.value.trim();
         if (!path) return alert('Enter a device path (e.g., /dev/ttyUSB0)');
+        pushHistory(LS_HIST_DEV, path);
+        populateDataList(devDataList, getHistory(LS_HIST_DEV));
         alert('Local Device mode UI is enabled. Browsers cannot open device paths directly. We can add Web Serial support or a Deno proxy in the next step. Entered path: ' + path);
       }
     });
@@ -227,7 +304,7 @@ class SourcePane {
 
     exportBtn.addEventListener('click', () => this.exportJSONL());
 
-    this.elements = { wrap, tableBody: table.querySelector('tbody'), form, charts, splitter };
+    this.elements = { wrap, tableBody: table.querySelector('tbody'), form, charts, splitter, connectBtn, spinner };
     return wrap;
   }
 
@@ -250,6 +327,13 @@ class SourcePane {
       canvas.width = Math.max(100, Math.floor(rect.width * dpr));
       canvas.height = Math.max(80, Math.floor(rect.height * dpr));
     }
+    // Resize time axis canvas
+    if (this.timeAxis && this.timeAxis.canvas) {
+      const rect = this.timeAxis.canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      this.timeAxis.canvas.width = Math.max(100, Math.floor(rect.width * dpr));
+      this.timeAxis.canvas.height = Math.max(18, Math.floor(rect.height * dpr));
+    }
     this.drawCharts();
   }
 
@@ -263,6 +347,10 @@ class SourcePane {
     if (!windowSamples.length) {
       for (const chart of Object.values(this.charts)) {
         chart.ctx?.clearRect(0, 0, chart.canvas.width, chart.canvas.height);
+      }
+      // Clear time axis too
+      if (this.timeAxis?.ctx && this.timeAxis?.canvas) {
+        this.timeAxis.ctx.clearRect(0, 0, this.timeAxis.canvas.width, this.timeAxis.canvas.height);
       }
       return;
     }
@@ -299,6 +387,72 @@ class SourcePane {
       }
       ctx.stroke();
     }
+
+    // Draw synchronized time axis in seconds
+    this.drawTimeAxis(tMin, tMax, tSpan);
+  }
+
+  timeAxisEl() {
+    const container = h('div', { class: 'time-axis' });
+    const canvas = h('canvas');
+    container.append(canvas);
+    const ctx = canvas.getContext('2d');
+    this.timeAxis = { canvas, ctx };
+    return container;
+  }
+
+  drawTimeAxis(tMin, tMax, tSpan) {
+    const axis = this.timeAxis;
+    if (!axis || !axis.ctx || !axis.canvas) return;
+    const ctx = axis.ctx;
+    const canvas = axis.canvas;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Determine desired ~6-10 ticks
+    const targetTicks = 8;
+    const spanSec = tSpan / 1000;
+    const niceSteps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600];
+    let step = niceSteps[0];
+    for (const s of niceSteps) {
+      if (spanSec / s <= targetTicks) { step = s; break; }
+      step = s;
+    }
+
+    // Padding must match the series mapping (4px each side)
+    const leftPad = 4;
+    const rightPad = 4;
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Axis line
+    ctx.strokeStyle = '#9ca3af';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(leftPad, height - 0.5);
+    ctx.lineTo(width - rightPad, height - 0.5);
+    ctx.stroke();
+
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = `${Math.max(10, Math.floor(10 * (window.devicePixelRatio || 1)))}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    // Start from nearest multiple of step seconds from tMin
+    const startSec = 0; // seconds offset from tMin
+    const endSec = spanSec;
+    const firstTick = Math.ceil(startSec / step) * step;
+    for (let s = firstTick; s <= endSec; s += step) {
+      const t = tMin + s * 1000;
+      const x = ((t - tMin) / tSpan) * (width - leftPad - rightPad) + leftPad;
+      // Tick mark
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, height - 12);
+      ctx.lineTo(x + 0.5, height - 0.5);
+      ctx.stroke();
+      // Label (seconds)
+      const label = `${Math.round(s)}s`;
+      ctx.fillText(label, x, 2);
+    }
   }
 
   addSample(sample) {
@@ -316,9 +470,13 @@ class SourcePane {
   renderHistoryRows() {
     const tb = this.elements.tableBody;
     tb.innerHTML = '';
-    for (const s of this.samples.slice(0, 500)) {
+    const rows = this.samples.slice(0, 500);
+    for (let i = 0; i < rows.length; i++) {
+      const s = rows[i];
+      const idx = i + 1; // 1-based index in current (most-recent-first) view
       tb.append(
         h('tr', {},
+          h('td', { class: 'col-idx' }, String(idx)),
           h('td', {}, s.ts),
           h('td', {}, formatNum(s.x)),
           h('td', {}, formatNum(s.y)),
@@ -351,17 +509,113 @@ class SourcePane {
   }
 
   async loadFile(file, skipLines) {
-    const text = await file.text();
-    const lines = text.split(/\r?\n/).slice(skipLines);
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const sample = parseSample(line);
-        this.addSample(sample);
-      } catch (e) {
-        console.warn('Bad line in file:', e);
+    // Stream the file incrementally to avoid blocking the UI
+    // Show lightweight progress in the Connect button if available
+    const { connectBtn, spinner } = this.elements || {};
+    const prevBtnText = connectBtn?.textContent;
+    const prevBtnDisabled = connectBtn?.disabled;
+    if (connectBtn) { connectBtn.disabled = true; connectBtn.textContent = 'Loading…'; }
+    if (spinner) { spinner.style.display = 'inline-block'; }
+
+    const decoder = new TextDecoder();
+    const reader = file.stream().getReader();
+    let { value, done } = await reader.read();
+    let buffer = '';
+    let lineCount = 0;
+    let skipped = 0;
+    const batch = [];
+
+    // Throttled rendering: schedule at most ~10fps
+    let rafPending = false;
+    const scheduleRender = () => {
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(() => {
+        rafPending = false;
+        this.renderHistoryRows();
+        this.drawCharts();
+      });
+    };
+
+    const pushBatch = () => {
+      if (!batch.length) return;
+      // Merge and sort once per batch (date desc)
+      this.samples.push(...batch);
+      batch.length = 0;
+      this.samples.sort((a, b) => b.date - a.date);
+      // Optional: cap memory to last N samples
+      const MAX_SAMPLES = 50000;
+      if (this.samples.length > MAX_SAMPLES) this.samples.length = MAX_SAMPLES;
+      scheduleRender();
+    };
+
+    try {
+      while (!done) {
+        buffer += decoder.decode(value, { stream: true });
+        // Process complete lines
+        let idx;
+        while ((idx = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 1);
+          line = line.replace(/\r$/, '');
+          if (!line.trim()) continue;
+          // Handle header skipping
+          if (skipped < (skipLines | 0)) { skipped++; continue; }
+          try {
+            const sample = parseSample(line);
+            batch.push(sample);
+            lineCount++;
+            if (batch.length >= 500) pushBatch();
+          } catch (e) {
+            console.warn('Bad line in file:', e);
+          }
+        }
+        // Update progress text occasionally
+        if (connectBtn && lineCount % 1000 === 0) connectBtn.textContent = `Loading… ${lineCount.toLocaleString()} lines`;
+        // Yield to keep UI responsive
+        await new Promise(r => setTimeout(r, 0));
+        ({ value, done } = await reader.read());
       }
+      // Flush the remainder of the buffer
+      buffer += decoder.decode();
+      for (const rawLine of buffer.split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line) continue;
+        if (skipped < (skipLines | 0)) { skipped++; continue; }
+        try {
+          const sample = parseSample(line);
+          batch.push(sample);
+          lineCount++;
+        } catch (e) {
+          console.warn('Bad line in file:', e);
+        }
+      }
+      pushBatch();
+      // Final render
+      this.renderHistoryRows();
+      this.drawCharts();
+      // Update tab title to the loaded filename
+      this.setTitle(file?.name || 'File');
+      if (!this._used) {
+        this._used = true;
+        if (typeof this.firstUseCb === 'function') this.firstUseCb(this);
+      }
+    } finally {
+      try { reader.releaseLock?.(); } catch {}
+      if (connectBtn) { connectBtn.disabled = prevBtnDisabled ?? false; connectBtn.textContent = prevBtnText ?? 'Connect'; }
+      if (spinner) { spinner.style.display = 'none'; }
     }
+  }
+
+  setTitle(title) {
+    this.title = title || this.title || 'Source';
+    const tab = document.getElementById(`tab-${this.id}`);
+    if (tab) {
+      const tspan = tab.querySelector('.tab-title');
+      if (tspan) tspan.textContent = this.title;
+      tab.setAttribute('title', this.title);
+    }
+    try { window.magdash?.savePanesState?.(); } catch {}
   }
 
   exportJSONL() {
@@ -449,6 +703,7 @@ class App {
   addSourcePane(opts = {}) {
     const id = opts.id || `src-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const title = opts.title || 'New Source';
+    const autoActivate = opts.autoActivate !== undefined ? !!opts.autoActivate : true;
     const pane = new SourcePane(id, title, (p) => this.activate(p), (p) => this.remove(p), () => this.onPaneFirstUse());
     if (typeof opts.leftWidthPx === 'number') pane.leftWidthPx = opts.leftWidthPx;
     this.panes.push(pane);
@@ -462,7 +717,7 @@ class App {
       this.tabsEl.append(tab);
     }
     this.contentEl.append(panel);
-    this.activate(pane);
+    if (autoActivate) this.activate(pane);
     this.savePanesState();
   }
 
@@ -560,7 +815,8 @@ class App {
 
   onPaneFirstUse() {
     // When a pane is used for the first time, create a fresh one to the right
-    this.addSourcePane();
+    // but keep the current page selected.
+    this.addSourcePane({ autoActivate: false });
   }
 
   clampLeftWidth(pane) {

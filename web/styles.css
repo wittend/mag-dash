@@ -1,11 +1,14 @@
 :root {
   color-scheme: light dark;
-  --bg: #ffffff;
-  --fg: #1a1a1a;
-  --muted: #6b7280;
-  --accent: #2563eb;
-  --surface: #f3f4f6;
-  --border: #e5e7eb;
+  /* Softer light palette for improved readability */
+  --bg: #f7f8fa;           /* was #ffffff */
+  --fg: #111827;           /* slightly deeper text for contrast */
+  --muted: #6b7280;        /* neutral-muted that still passes on white */
+  --accent: #2563eb;       /* brand accent */
+  --surface: #ffffff;      /* cards/tabs/buttons surface */
+  --border: #d7dbe3;       /* was #e5e7eb; a bit stronger for separation */
+  --border-strong: #b7beca;/* used for interactive controls */
+  --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 10px rgba(0,0,0,0.06);
 }
 
 [data-theme="dark"] {
@@ -15,6 +18,8 @@
   --accent: #60a5fa;
   --surface: #0f1720;
   --border: #1f2937;
+  --border-strong: #2a3647;
+  --shadow: none;
 }
 
 html, body {
@@ -57,23 +62,41 @@ body {
 
 .tab {
   padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
   cursor: pointer;
   white-space: nowrap;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  color: var(--fg);
+  box-shadow: var(--shadow);
 }
 
+.tab:hover { background: #f3f4f6; }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .tab[aria-selected="true"] {
-  outline: 2px solid var(--accent);
+  border-color: var(--accent);
+  background: #ffffff;
+  color: var(--fg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.08);
 }
 
 .actions { display: flex; align-items: center; gap: 8px; }
-.icon-btn { border: 1px solid var(--border); background: var(--bg); color: var(--fg); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+.icon-btn {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.icon-btn:hover { background: #f3f4f6; }
+.icon-btn:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
 
 /* Tab title: slightly smaller and ellipsized within tab */
 .tab .tab-title {
@@ -87,9 +110,10 @@ body {
 
 .content {
   --left-width: 360px; /* will be updated at runtime per active pane */
+  --splitter-width: 6px; /* adjustable so we can collapse the splitter too */
   padding: 16px;
   display: grid;
-  grid-template-columns: var(--left-width) 6px 1fr; /* left | splitter | right */
+  grid-template-columns: var(--left-width) var(--splitter-width) 1fr; /* left | splitter | right */
   /* Top row auto (fits plots' min-heights); bottom row takes the rest, with a 35% minimum by fraction */
   grid-template-rows: auto minmax(35%, 1fr);
   gap: 16px;
@@ -107,7 +131,7 @@ body {
   grid-column: 2 / 3;
   grid-row: 1 / 3; /* span both rows */
   align-self: stretch;
-  width: 6px;
+  width: var(--splitter-width);
   cursor: col-resize;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -115,6 +139,12 @@ body {
   border-bottom: none;
   border-radius: 8px;
   touch-action: none; /* allow pointer drag without scrolling */
+}
+
+/* Collapsed layout: hide left config form and minimize splitter width */
+.panel.collapsed .left-pane { display: none; }
+.panel.collapsed .vsplit {
+  cursor: pointer; /* acts as a show-handle */
 }
 
 /* Explicit grid placement for source pane areas */
@@ -138,12 +168,13 @@ body {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
+  box-shadow: var(--shadow);
 }
 
 .field { display: grid; grid-template-columns: 160px 1fr; gap: 10px; align-items: center; margin-bottom: 12px; }
 .field input, .field select { width: 100%; padding: 10px 12px; border-radius: 8px; background: var(--bg); color: var(--fg); border: 1px solid var(--border); font-size: 1rem; }
 .row { display: flex; gap: 8px; justify-content: flex-end; }
-.btn { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--fg); cursor: pointer; font-size: 1rem; }
+.btn { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--fg); cursor: pointer; font-size: 1rem; box-shadow: var(--shadow); }
 .btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
 
 .charts { display: grid; grid-template-columns: 1fr; grid-template-rows: repeat(4, minmax(120px, 1fr)) 28px; gap: 12px; min-height: 0; }
@@ -153,6 +184,7 @@ body {
   border: 1px dashed var(--border);
   border-radius: 8px;
   position: relative;
+  box-shadow: var(--shadow);
 }
 .chart canvas { width: 100%; height: 100%; display: block; }
 .chart .label { position: absolute; left: 8px; top: 6px; font-size: 12px; color: var(--muted); }
@@ -165,12 +197,13 @@ body {
   padding: 0;
   position: relative;
   min-height: 24px;
+  box-shadow: var(--shadow);
 }
 .time-axis canvas { width: 100%; height: 100%; display: block; }
 
 .history.card { grid-column: 3 / 4; grid-row: 2 / 3; display: flex; flex-direction: column; min-height: 0; }
 .table { width: 100%; border-collapse: collapse; font-size: 16px; }
-.table th, .table td { border: 1px solid var(--border); padding: 6px 8px; }
+.table th, .table td { border: 1px solid var(--border); padding: 6px 8px; color: var(--fg); background: var(--surface); }
 .table thead th { position: sticky; top: 0; background: var(--surface); }
 .history-body { flex: 1 1 auto; min-height: 0; overflow: auto; display: block; }
 .history-body table { width: 100%; border-collapse: collapse; }

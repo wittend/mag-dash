@@ -28,23 +28,26 @@ Purpose:
  
 * The User Interface will provide an Icon to toggle the entire program from light mode.  This must include all presentation pages, menus, popups, prompts, and controls, and maintain optimum readability.
 
-* The program MUST fooer to save any savable data to JSON-based files on closure or exit.
+* The program MUST offer to save any savable data to JSON-based files on closure or exit.
 
-* This project should have appropriate documentation for a public github repository and it should contain what is needed to create a Read theDocs documebtation site using Sphinx and a Furo theme.
+* This project should have appropriate documentation for a public Github repository. It should contain what is needed to create a Read theDocs documebtation site using Sphinx and a Furo theme.
 
 Data Format:
 
 - Baseline schema:
 ```
-{ "ts": "DD Mon YYYY HH:MM:SS", "x": <float>, "y": <float>, "z": <float> }
+{ "ts": "DD Mon YYYY HH:MM:SS", "rt": <float>, "x": <float>, "y": <float>, "z": <float> }
 ```
+
 `ts` (string): UTC timestamp formatted like `25 Oct 2025 14:02:33` (RFC‑2822‑like time portion without timezone offset).
+
+`rt` (number): Sensor temperature in degrees Celsius.
 
 `x`, `y`, `z` (number): Field components in nanoTesla (nT), with 3 decimal places printed.
 
 - Example:
 ```
-{ "ts":"26 Oct 2025 14:20:00", "x":12345.678, "y":-234.500, "z":987.001 }
+{ "ts":"26 Oct 2025 14:20:00", "rt": 24.1, "x":12345.678, "y":-234.500, "z":987.001 }
 ```
 
 
@@ -76,10 +79,9 @@ that the browser completely hangs and gives a "web page not responding" popup an
 to kill the page.  I cannot see the problem in the dev tools.
 
 I don't want the text. "Note: browsers cannot auto-open past files; select to recall the 
-name only." to appear on the configuration page.  I Would like an SVG spinner to appear 
+name only." to appear on the configuration page.  I would like an SVG spinner to appear 
 while a local file is being loaded.  I want the file's name to replace the words "New Source" 
-in the tab once it is loaded.  This file name can be in a slightly 
-smaller font and or elipsized'
+in the tab once it is loaded.  This file name can be in a slightly smaller font and/or 'elipsized'
 
 I don't like the phrase 'recent files" appearing above the recent files dropdown which it
 does now.  I also don't like the fact that the "local device" and 'Websocket URL' boxes 
@@ -88,5 +90,12 @@ history window that just shows the integer value of the lin's position in the lo
 
 Ok, I see some improvement.  I would really like for the current page to remain selected 
 when the local file has completed loading. Also, I don't see an x-scale (seconds) for the 
-plotted data. I need that. It can be smallbut it must be synchronized with the already 
+plotted data. I need that. It can be small but it must be synchronized with the already 
 synchronized plots.
+
+I would like a way to toggle the config  window between visible/hidden states and 
+cause the right side of the window to resize correctly.
+
+Ok. But I want the suggested options: 
+- a global toggle in the top bar to apply to the active pane.
+- We can also add an accessible `aria-expanded` on the toggle button and a keyboard shortcut if desired.

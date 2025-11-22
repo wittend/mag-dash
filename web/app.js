@@ -95,6 +95,7 @@ class SourcePane {
     this.connected = false;
     this.mode = 'ws'; // 'ws' or 'file'
     this._used = false;
+    this.collapsed = false; // whether the left config pane is hidden
   }
 
   tabEl() {
@@ -165,20 +166,25 @@ class SourcePane {
 
     const connectBtn = h('button', { class: 'btn primary' }, h('span', { class: 'ti ti-plug-connected' }), ' Connect');
     const abandonBtn = h('button', { class: 'btn' }, h('span', { class: 'ti ti-trash' }), ' Abandon');
+    const collapseBtn = h('button', { class: 'btn', title: 'Hide config (toggle)' }, h('span', { class: 'ti ti-chevron-left' }), ' Hide');
 
     // Inline SVG spinner (hidden by default); shown during local file loading
     const spinner = h('svg', { class: 'spinner', viewBox: '0 0 50 50', 'aria-hidden': 'true' },
       h('circle', { cx: '25', cy: '25', r: '20', stroke: 'currentColor', 'stroke-width': '4', fill: 'none', 'stroke-linecap': 'round' })
     );
 
-    const form = h('div', { class: 'card left-pane' },
+    const formId = `form-${this.id}`;
+    const form = h('div', { class: 'card left-pane', id: formId },
       h('div', { class: 'field' }, h('label', {}, 'Mode'), modeSel),
       h('div', { class: 'field' }, h('label', {}, 'WebSocket URL'), urlInput, urlDataList),
       h('div', { class: 'field' }, h('label', {}, 'Local file'), fileInput, recentFilesWrap),
       h('div', { class: 'field' }, h('label', {}, 'Device path'), deviceInput, devDataList),
       h('div', { class: 'field' }, h('label', {}, 'Skip header lines'), skipInput),
-      h('div', { class: 'row' }, abandonBtn, connectBtn, spinner),
+      h('div', { class: 'row' }, abandonBtn, connectBtn, spinner, collapseBtn),
     );
+    // Accessibility: tie the collapse button to the form it controls
+    collapseBtn.setAttribute('aria-controls', formId);
+    collapseBtn.setAttribute('aria-expanded', 'true');
 
     // Right: charts
     const charts = h('div', { class: 'charts right-pane' },
@@ -190,7 +196,7 @@ class SourcePane {
     );
 
     // Vertical splitter between left (form) and right (charts)
-    const splitter = h('div', { class: 'vsplit', role: 'separator', 'aria-orientation': 'vertical', tabindex: '0' });
+    const splitter = h('div', { class: 'vsplit', role: 'separator', 'aria-orientation': 'vertical', tabindex: '0', title: 'Drag to resize. Click when hidden to show config.' });
 
     // History table
     const table = h('table', { class: 'table' },
@@ -234,7 +240,7 @@ class SourcePane {
     // Drag behavior for splitter
     const onPointerMove = (ev) => {
       const contentEl = document.getElementById('content');
-      if (!contentEl || !this._dragging) return;
+      if (!contentEl || !this._dragging || this.collapsed) return;
       ev.preventDefault();
       const rect = contentEl.getBoundingClientRect();
       const styles = getComputedStyle(contentEl);
@@ -268,6 +274,11 @@ class SourcePane {
     };
     splitter.addEventListener('pointerdown', (ev) => {
       ev.preventDefault();
+      if (this.collapsed) {
+        // When collapsed, clicking the splitter acts as a show-handle
+        this.setCollapsed(false);
+        return;
+      }
       this._dragging = true;
       splitter.setPointerCapture?.(ev.pointerId);
       window.addEventListener('pointermove', onPointerMove);
@@ -302,9 +313,15 @@ class SourcePane {
 
     abandonBtn.addEventListener('click', () => this.removeCb(this));
 
+    collapseBtn.addEventListener('click', () => {
+      this.setCollapsed(!this.collapsed);
+    });
+
     exportBtn.addEventListener('click', () => this.exportJSONL());
 
-    this.elements = { wrap, tableBody: table.querySelector('tbody'), form, charts, splitter, connectBtn, spinner };
+    this.elements = { wrap, tableBody: table.querySelector('tbody'), form, charts, splitter, connectBtn, spinner, collapseBtn };
+    // Ensure initial collapse state is reflected
+    this.updateCollapseUI();
     return wrap;
   }
 
@@ -335,6 +352,54 @@ class SourcePane {
       this.timeAxis.canvas.height = Math.max(18, Math.floor(rect.height * dpr));
     }
     this.drawCharts();
+  }
+
+  setCollapsed(flag) {
+    this.collapsed = !!flag;
+    this.updateCollapseUI();
+    // Persist state
+    try { window.magdash?.savePanesState?.(); } catch {}
+    // Resize charts to reflect new layout
+    this.resizeCharts();
+  }
+
+  updateCollapseUI() {
+    const wrap = this.elements?.wrap;
+    const form = this.elements?.form;
+    const collapseBtn = this.elements?.collapseBtn;
+    if (!wrap || !form) return;
+    // Toggle class on the panel; grid CSS hides left-pane when collapsed
+    wrap.classList.toggle('collapsed', this.collapsed);
+    const contentEl = document.getElementById('content');
+    if (contentEl) {
+      if (this.collapsed) {
+        contentEl.style.setProperty('--left-width', '0px');
+      } else {
+        // restore to previous width or intrinsic minimum
+        const minLeft = Math.max(240, this.minLeftPx || Math.ceil(form.scrollWidth));
+        const desired = Math.max(minLeft, this.leftWidthPx || 360);
+        contentEl.style.setProperty('--left-width', `${desired}px`);
+      }
+    }
+    if (collapseBtn) {
+      if (this.collapsed) {
+        collapseBtn.title = 'Show config (toggle)';
+        collapseBtn.innerHTML = '';
+        collapseBtn.append(h('span', { class: 'ti ti-chevron-right' }), ' Show');
+        collapseBtn.setAttribute('aria-expanded', 'false');
+      } else {
+        collapseBtn.title = 'Hide config (toggle)';
+        collapseBtn.innerHTML = '';
+        collapseBtn.append(h('span', { class: 'ti ti-chevron-left' }), ' Hide');
+        collapseBtn.setAttribute('aria-expanded', 'true');
+      }
+      // Ensure aria-controls points to the current form id
+      if (form.id) collapseBtn.setAttribute('aria-controls', form.id);
+    }
+    // Notify app so global toggle can reflect state
+    try {
+      window.dispatchEvent(new CustomEvent('magdash:collapsed', { detail: { id: this.id, collapsed: this.collapsed } }));
+    } catch {}
   }
 
   drawCharts() {
@@ -652,6 +717,17 @@ class App {
     this.themeBtn = document.getElementById('themeToggle');
     this.themeBtn.addEventListener('click', () => this.toggleTheme());
 
+    // Global config toggle button (collapse/expand left config for active pane)
+    this.globalCfgBtn = document.getElementById('configToggle');
+    if (this.globalCfgBtn) {
+      this.globalCfgBtn.addEventListener('click', () => {
+        const p = this.activePane();
+        if (!p) return;
+        p.setCollapsed(!p.collapsed);
+        this.updateGlobalConfigToggle();
+      });
+    }
+
     window.addEventListener('resize', () => {
       const active = this.activePane();
       if (active) {
@@ -681,6 +757,27 @@ class App {
       } catch {}
     });
 
+    // Reflect per-pane collapse state changes in the global toggle button
+    window.addEventListener('magdash:collapsed', () => this.updateGlobalConfigToggle());
+
+    // Keyboard shortcut: Ctrl+Shift+C (or Meta+Shift+C) toggles config for active pane
+    window.addEventListener('keydown', (e) => {
+      const ctrlOrMeta = e.ctrlKey || e.metaKey;
+      if (!ctrlOrMeta || !e.shiftKey) return;
+      // Ignore if focused element is an editable input without modifiers beyond Ctrl/Meta+Shift
+      const tag = (document.activeElement && document.activeElement.tagName) ? document.activeElement.tagName.toLowerCase() : '';
+      const isEditable = ['input','textarea','select'].includes(tag) || (document.activeElement && document.activeElement.isContentEditable);
+      if (isEditable && !(e.ctrlKey || e.metaKey)) return;
+      if (e.code === 'KeyC') {
+        const p = this.activePane();
+        if (p) {
+          e.preventDefault();
+          p.setCollapsed(!p.collapsed);
+          this.updateGlobalConfigToggle();
+        }
+      }
+    });
+
     // Initialize config first so it's available before activating any source pane
     this.addConfigPane();
     // Restore panes from localStorage or create one
@@ -689,6 +786,8 @@ class App {
       this.addSourcePane();
       this.savePanesState();
     }
+    // Initial state of the global toggle
+    this.updateGlobalConfigToggle();
   }
 
   activePane() { return this.panes.find(p => p.active); }
@@ -706,6 +805,7 @@ class App {
     const autoActivate = opts.autoActivate !== undefined ? !!opts.autoActivate : true;
     const pane = new SourcePane(id, title, (p) => this.activate(p), (p) => this.remove(p), () => this.onPaneFirstUse());
     if (typeof opts.leftWidthPx === 'number') pane.leftWidthPx = opts.leftWidthPx;
+    if (typeof opts.collapsed === 'boolean') pane.collapsed = opts.collapsed;
     this.panes.push(pane);
     const tab = pane.tabEl();
     const panel = pane.panelEl();
@@ -758,6 +858,7 @@ class App {
     for (const p of this.panes) this.setActive(p, false);
     this.configPanel.setAttribute('aria-hidden', 'false');
     this.markActiveTab('config');
+    this.updateGlobalConfigToggle();
   }
 
   markActiveTab(id) {
@@ -777,23 +878,30 @@ class App {
       const contentEl = document.getElementById('content');
       const form = pane.elements?.form;
       if (contentEl && form) {
-        const minLeft = Math.max(240, pane.minLeftPx || Math.ceil(form.scrollWidth));
-        let desired = Math.max(minLeft, pane.leftWidthPx || 360);
-        // Also respect maximum based on current viewport
-        const styles = getComputedStyle(contentEl);
-        const rect = contentEl.getBoundingClientRect();
-        const padL = parseFloat(styles.paddingLeft) || 0;
-        const padR = parseFloat(styles.paddingRight) || 0;
-        const gap = parseFloat(styles.columnGap) || 16;
-        const splitterW = pane.elements?.splitter ? (parseFloat(getComputedStyle(pane.elements.splitter).width) || 6) : 6;
-        const innerWidth = rect.width - padL - padR;
-        const minRight = 320;
-        const maxLeft = Math.max(0, innerWidth - (minRight + splitterW + gap * 2));
-        desired = Math.min(desired, maxLeft);
-        contentEl.style.setProperty('--left-width', `${desired}px`);
+        if (pane.collapsed) {
+          contentEl.style.setProperty('--left-width', `0px`);
+          pane.updateCollapseUI?.();
+        } else {
+          const minLeft = Math.max(240, pane.minLeftPx || Math.ceil(form.scrollWidth));
+          let desired = Math.max(minLeft, pane.leftWidthPx || 360);
+          // Also respect maximum based on current viewport
+          const styles = getComputedStyle(contentEl);
+          const rect = contentEl.getBoundingClientRect();
+          const padL = parseFloat(styles.paddingLeft) || 0;
+          const padR = parseFloat(styles.paddingRight) || 0;
+          const gap = parseFloat(styles.columnGap) || 16;
+          const splitterW = pane.elements?.splitter ? (parseFloat(getComputedStyle(pane.elements.splitter).width) || 6) : 6;
+          const innerWidth = rect.width - padL - padR;
+          const minRight = 320;
+          const maxLeft = Math.max(0, innerWidth - (minRight + splitterW + gap * 2));
+          desired = Math.min(desired, maxLeft);
+          contentEl.style.setProperty('--left-width', `${desired}px`);
+          pane.updateCollapseUI?.();
+        }
       }
     } catch {}
     pane.resizeCharts();
+    this.updateGlobalConfigToggle();
   }
 
   setActive(pane, active) {
@@ -811,6 +919,7 @@ class App {
     document.getElementById(`tab-${pane.id}`)?.remove();
     this.savePanesState();
     if (!this.panes.length) this.addSourcePane(); else this.activate(this.panes[0]);
+    this.updateGlobalConfigToggle();
   }
 
   onPaneFirstUse() {
@@ -824,6 +933,11 @@ class App {
       const contentEl = document.getElementById('content');
       const form = pane.elements?.form;
       if (!contentEl || !form) return;
+      if (pane.collapsed) {
+        // Keep collapsed width at 0 when window resizes
+        contentEl.style.setProperty('--left-width', `0px`);
+        return;
+      }
       const styles = getComputedStyle(contentEl);
       const rect = contentEl.getBoundingClientRect();
       const padL = parseFloat(styles.paddingLeft) || 0;
@@ -843,7 +957,7 @@ class App {
 
   savePanesState() {
     try {
-      const data = this.panes.map(p => ({ id: p.id, title: p.title, leftWidthPx: typeof p.leftWidthPx === 'number' ? p.leftWidthPx : undefined }));
+      const data = this.panes.map(p => ({ id: p.id, title: p.title, leftWidthPx: typeof p.leftWidthPx === 'number' ? p.leftWidthPx : undefined, collapsed: !!p.collapsed }));
       localStorage.setItem(LS_PANES_KEY, JSON.stringify(data));
     } catch {}
   }
@@ -855,12 +969,37 @@ class App {
       const arr = JSON.parse(raw);
       if (!Array.isArray(arr) || !arr.length) return false;
       for (const item of arr) {
-        this.addSourcePane({ id: item.id, title: item.title || 'Source', leftWidthPx: item.leftWidthPx });
+        this.addSourcePane({ id: item.id, title: item.title || 'Source', leftWidthPx: item.leftWidthPx, collapsed: !!item.collapsed });
       }
       // ensure config tab stays last (already handled in addSourcePane)
+      this.updateGlobalConfigToggle();
       return true;
     } catch {
       return false;
+    }
+  }
+
+  updateGlobalConfigToggle() {
+    const btn = this.globalCfgBtn;
+    if (!btn) return;
+    const active = this.activePane();
+    const isConfigActive = this.configPanel && this.configPanel.getAttribute('aria-hidden') === 'false';
+    const enabled = !!active && !isConfigActive;
+    btn.disabled = !enabled;
+    if (!enabled) {
+      btn.setAttribute('aria-pressed', 'false');
+      btn.title = 'Toggle config panel (select a source tab)';
+      btn.innerHTML = '<span class="ti ti-layout-sidebar-right-collapse"></span>';
+      return;
+    }
+    btn.setAttribute('aria-pressed', active.collapsed ? 'true' : 'false');
+    // Update icon and tooltip according to state
+    if (active.collapsed) {
+      btn.title = 'Show config (Ctrl+Shift+C)';
+      btn.innerHTML = '<span class="ti ti-layout-sidebar-right-expand"></span>';
+    } else {
+      btn.title = 'Hide config (Ctrl+Shift+C)';
+      btn.innerHTML = '<span class="ti ti-layout-sidebar-right-collapse"></span>';
     }
   }
 }

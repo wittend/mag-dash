@@ -3,11 +3,23 @@
 
 const WEB_ROOT = new URL("./web/", import.meta.url);
 
-function log(...args: unknown[]) {
+// Toggle server-side verbose logging via env. Default: off.
+// Enable by setting MAGDASH_VERBOSE=1 (or true/on/yes) or DEBUG=1 when starting the server.
+const VERBOSE: boolean = (() => {
+  try {
+    const v = Deno.env.get("MAGDASH_VERBOSE") ?? Deno.env.get("DEBUG") ?? "";
+    return /^(1|true|on|yes)$/i.test(v);
+  } catch {
+    return false;
+  }
+})();
+
+function log(..._args: unknown[]) {
+  if (!VERBOSE) return;
   try {
     // Slightly formatted log with timestamp
     const ts = new Date().toISOString();
-    console.log(`[${ts}]`, ...args);
+    console.log(`[${ts}]`, ..._args);
   } catch {
     // noop
   }

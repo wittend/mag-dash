@@ -14,7 +14,7 @@ A lightweight Deno‑served single‑page app (SPA) for visualizing ground magne
 Project docs
 ------------
 
-- Documentation (Read the Docs): https://mag-dash.readthedocs.io/ (placeholder; configure in RTD)
+- Documentation (Read the Docs): https://mag-dash.readthedocs.io/en/latest/index.html 
 - Changelog: see `CHANGELOG.md`
 - Requirements: see `docs/requirements.md`
 

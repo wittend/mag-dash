@@ -98,11 +98,50 @@ class SourcePane {
     this.collapsed = false; // whether the left config pane is hidden
   }
 
-  tabEl() {
-    const btn = h('button', { class: 'tab', role: 'tab', id: `tab-${this.id}`, title: this.title },
-      h('span', { class: 'ti ti-radio' }), ' ',
-      h('span', { class: 'tab-title' }, this.title)
+  // Build a close button element for the tab
+  makeCloseEl() {
+    const closeEl = h(
+      'span',
+      {
+        class: 'tab-close',
+        title: 'Close tab',
+        'aria-label': 'Close tab',
+        role: 'button'
+      },
+      h('span', { class: 'ti ti-x', 'aria-hidden': 'true' })
     );
+
+    // Prevent activating tab when clicking the close icon
+    closeEl.addEventListener('mousedown', (ev) => {
+      ev.stopPropagation();
+      // prevent the parent button from receiving focus on mousedown
+      ev.preventDefault();
+    });
+    closeEl.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      ev.preventDefault();
+      try { this.removeCb && this.removeCb(this); } catch {}
+    });
+    closeEl.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.stopPropagation();
+        ev.preventDefault();
+        try { this.removeCb && this.removeCb(this); } catch {}
+      }
+    });
+    return closeEl;
+  }
+
+  tabEl() {
+    const isNewSource = (this.title || '').trim() === 'New Source';
+
+    const children = [
+      h('span', { class: 'ti ti-radio' }), ' ',
+      h('span', { class: 'tab-title' }, this.title),
+    ];
+    if (!isNewSource) children.push(this.makeCloseEl());
+
+    const btn = h('button', { class: 'tab', role: 'tab', id: `tab-${this.id}`, title: this.title }, ...children);
     btn.addEventListener('click', () => this.activateCb(this));
     return btn;
   }
@@ -138,21 +177,7 @@ class SourcePane {
     populateDataList(urlDataList, getHistory(LS_HIST_WS));
     populateDataList(devDataList, getHistory(LS_HIST_DEV));
 
-    // Recent files UI (cannot prefill file input): show a small select list of recent file names
-    const recentFilesWrap = h('div', { class: 'small' });
-    const recentFilesSelect = h('select', { class: 'w-100' }, h('option', { value: '' }, '-- choose recent file name --'));
-    const refreshRecentFiles = () => {
-      const items = getHistory(LS_HIST_FILES);
-      // Reset options
-      recentFilesSelect.innerHTML = '';
-      recentFilesSelect.append(h('option', { value: '' }, items.length ? '-- choose recent file name --' : 'No recent files'));
-      for (const it of items.slice(0, 10)) {
-        recentFilesSelect.append(h('option', { value: it }, it));
-      }
-    };
-    refreshRecentFiles();
-    // Only show the dropdown; omit any label text like "Recent files"
-    recentFilesWrap.append(recentFilesSelect);
+    // Removed: Recent files dropdown UI per request. Keeping file history storage in place for potential future use.
 
     modeSel.addEventListener('change', () => {
       this.mode = modeSel.value;
@@ -165,7 +190,6 @@ class SourcePane {
     });
 
     const connectBtn = h('button', { class: 'btn primary' }, h('span', { class: 'ti ti-plug-connected' }), ' Connect');
-    const abandonBtn = h('button', { class: 'btn' }, h('span', { class: 'ti ti-trash' }), ' Abandon');
 
     // Inline SVG spinner (hidden by default); shown during local file loading
     const spinner = h('svg', { class: 'spinner', viewBox: '0 0 50 50', 'aria-hidden': 'true' },
@@ -173,15 +197,7 @@ class SourcePane {
     );
 
     const formId = `form-${this.id}`;
-    // Clear history small buttons (compact variant)
-    const clearBtn = (title, onClick) =>
-      h('button', { class: 'icon-btn icon-btn--sm clear-btn', title, 'aria-label': title, onclick: onClick },
-        h('span', { class: 'ti ti-x', 'aria-hidden': 'true' })
-      );
-
-    const clearWs = () => { localStorage.removeItem(LS_HIST_WS); populateDataList(urlDataList, []); };
-    const clearFiles = () => { localStorage.removeItem(LS_HIST_FILES); refreshRecentFiles(); };
-    const clearDev = () => { localStorage.removeItem(LS_HIST_DEV); populateDataList(devDataList, []); };
+    // Note: Clear-history UI buttons removed per request; history still updates automatically on connect/open.
 
     const form = h('div', { class: 'card left-pane', id: formId },
       h('div', { class: 'field' },
@@ -190,23 +206,24 @@ class SourcePane {
       ),
       h('div', { class: 'field' },
         h('label', {}, 'WebSocket URL'),
-        clearBtn('Clear WebSocket URL history', clearWs),
         urlInput, urlDataList
       ),
       h('div', { class: 'field' },
         h('label', {}, 'Local file'),
-        clearBtn('Clear recent file names', clearFiles),
-        fileInput, recentFilesWrap
+        fileInput
       ),
       h('div', { class: 'field' },
         h('label', {}, 'Device path'),
-        clearBtn('Clear device path history', clearDev),
         deviceInput, devDataList
       ),
       h('div', { class: 'field' }, h('label', {}, 'Skip header lines'), skipInput),
-      h('div', { class: 'row' }, abandonBtn, connectBtn, spinner),
+      h('div', { class: 'row' }, connectBtn, spinner),
     );
     // Note: per-pane Hide button removed; use the top-bar toggle or keyboard shortcut instead.
+
+    // Wire up actions
+    // Note: Abandon button removed; closing a tab is done via the tab's close (x) control.
+    // Connect button wiring remains below where mode-specific actions are handled.
 
     // Right: charts
     const charts = h('div', { class: 'charts right-pane' },
@@ -322,7 +339,6 @@ class SourcePane {
         if (!file) return alert('Choose a file');
         // Save file name to history and refresh UI
         pushHistory(LS_HIST_FILES, file.name || 'unnamed');
-        refreshRecentFiles();
         await this.loadFile(file, skip);
       } else if (this.mode === 'device') {
         const path = deviceInput.value.trim();
@@ -332,8 +348,6 @@ class SourcePane {
         alert('Local Device mode UI is enabled. Browsers cannot open device paths directly. We can add Web Serial support or a Deno proxy in the next step. Entered path: ' + path);
       }
     });
-
-    abandonBtn.addEventListener('click', () => this.removeCb(this));
 
     exportBtn.addEventListener('click', () => this.exportJSONL());
 
@@ -683,6 +697,17 @@ class SourcePane {
       const tspan = tab.querySelector('.tab-title');
       if (tspan) tspan.textContent = this.title;
       tab.setAttribute('title', this.title);
+      // Ensure the close icon presence matches current title
+      const isNowNewSource = (this.title || '').trim() === 'New Source';
+      const hasClose = !!tab.querySelector('.tab-close');
+      if (!isNowNewSource && !hasClose) {
+        // Append a close element now that it is no longer the New Source tab
+        tab.appendChild(this.makeCloseEl());
+      } else if (isNowNewSource && hasClose) {
+        // Remove close if somehow title reverted to New Source
+        const el = tab.querySelector('.tab-close');
+        if (el) el.remove();
+      }
     }
     try { window.magdash?.savePanesState?.(); } catch {}
   }

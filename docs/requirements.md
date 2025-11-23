@@ -232,3 +232,39 @@ Load http://127.0.0.1:8000/ and/or http://localhost:8080/ and let me know if the
 •
 If it still doesn’t render, paste any Console/Network errors from DevTools.
 With that info I can finalize either a small binding tweak (IPv6) or address any remaining client‑side hiccup immediately.
+
+
+---------------------
+
+Ok, This project seems back on track but there are some important changes that I need. - First, I want to remove the 
+buttons in the config page that clear the history lists for the 'WebSocket URL', 'File path', and 'Device path' entry boxes.
+
+Ok, next I want to place a small icon after the source name, possibly just a small 'x', in the Tab of each opened 
+source. This button will be the equivalent to the 'abandon' button on the config page for just that tab page. 
+
+Ok, but the close/abandon icon/event should not be placed into the tab labeled 'New Source".  
+That tab should always be present.
+
+This last change seems to have broken what we had before.  While it removed the 'x'/'abandon' icon from the  'New Source' 
+tab, that icon & functionality is no longer visible in the loaded/active tabs, either, as it should be.
+
+---------------------
+
+Now I would like to remove the 'Abandon' button all together from the config page but leave all other functionality intact.
+
+---------------------
+
+Ok, I would also like to remove the dropdown box related to 'Local File' that shows recent files. It is not useful and 
+just complicates the config page.
+
+---------------------
+Ok, I would like for the native file picker input to not show the text "Choose File" but to only show a small 
+file-open Icon.  I also want it to be placed to the entirely to the left of the file name box with enough padding to 
+prevent it from obscuring the contents of the file name box.
+---------------------
+
+
+
+
+
+

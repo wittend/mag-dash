@@ -120,6 +120,26 @@ body {
   min-width: 0;
 }
 
+/* Close icon inside tab */
+.tab .tab-close {
+  margin-left: 6px;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  opacity: 0.7;
+}
+.tab .tab-close:hover {
+  background: #e5e7eb;
+  opacity: 1;
+}
+.tab .tab-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tab .tab-close .ti { font-size: 14px; line-height: 1; }
+
 .content {
   --left-width: 360px; /* will be updated at runtime per active pane */
   --splitter-width: 6px; /* adjustable so we can collapse the splitter too */
@@ -183,13 +203,11 @@ body {
   box-shadow: var(--shadow);
 }
 
-.field { display: grid; grid-template-columns: 160px 36px 1fr; gap: 12px; align-items: center; margin-bottom: 12px; }
+.field { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 12px; align-items: center; margin-bottom: 12px; }
 .field input, .field select { width: 100%; padding: 10px 12px; border-radius: 8px; background: var(--bg); color: var(--fg); border: 1px solid var(--border); font-size: 1rem; }
 .field > label { grid-column: 1; }
-/* Place clear buttons (small) in column 2 when present */
-.field .clear-btn { grid-column: 2; justify-self: start; z-index: 1; }
-/* Place all other controls/content into column 3 */
-.field > :not(label):not(.clear-btn) { grid-column: 3; }
+/* Place all non-label controls/content into column 2 */
+.field > :not(label) { grid-column: 2; }
 .row { display: flex; gap: 8px; justify-content: flex-end; }
 .btn { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--fg); cursor: pointer; font-size: 1rem; box-shadow: var(--shadow); }
 .btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
@@ -307,3 +325,57 @@ body {
 
 /* Global sizing stability */
 *, *::before, *::after { box-sizing: border-box; }
+
+/* ==============================
+   File input: icon-only trigger
+   ==============================
+   Replace the default "Choose File" text button with a compact icon-only
+   button positioned at the far left, with spacing before the filename.
+   We use ::file-selector-button (and the WebKit fallback) to style the
+   native button. The filename text remains visible and unobscured. */
+.left-pane input[type="file"]::file-selector-button,
+.left-pane input[type="file"]::-webkit-file-upload-button {
+  /* Hide the default label text while keeping the control accessible */
+  font-size: 0;
+  line-height: 0;
+  /* Shape and size */
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  margin: 0 10px 0 0; /* space between icon button and filename */
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background-color: var(--surface);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  /* Center a small folder/file-open glyph */
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 18px 18px;
+  /* Light theme default icon color baked into the data URI */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='%23111827'><path d='M10 4l2 2h6a2 2 0 012 2v2h-2V8h-6.343l-2-2H6a2 2 0 00-2 2v10a2 2 0 002 2h6v-2H6V8h3.657l.343.343V8h10v4h-2v-2h-8v10h2v-6h8l2 6h2l-2.667-8H12v-2h10V8a4 4 0 00-4-4h-6l-2-2H6a4 4 0 00-4 4v10a4 4 0 004 4h6v-2H6a2 2 0 01-2-2V8a2 2 0 012-2h4z'/></svg>");
+}
+
+.left-pane input[type="file"]::file-selector-button:hover,
+.left-pane input[type="file"]::-webkit-file-upload-button:hover {
+  background-color: #f3f4f6;
+}
+
+.left-pane input[type="file"]::file-selector-button:focus-visible,
+.left-pane input[type="file"]::-webkit-file-upload-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Dark theme: swap the embedded SVG to a light fill for contrast */
+[data-theme="dark"] .left-pane input[type="file"]::file-selector-button,
+[data-theme="dark"] .left-pane input[type="file"]::-webkit-file-upload-button {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='%23e5e7eb'><path d='M10 4l2 2h6a2 2 0 012 2v2h-2V8h-6.343l-2-2H6a2 2 0 00-2 2v10a2 2 0 002 2h6v-2H6V8h3.657l.343.343V8h10v4h-2v-2h-8v10h2v-6h8l2 6h2l-2.667-8H12v-2h10V8a4 4 0 00-4-4h-6l-2-2H6a4 4 0 00-4 4v10a4 4 0 004 4h6v-2H6a2 2 0 01-2-2V8a2 2 0 012-2h4z'/></svg>");
+}
+
+/* Ensure the input content (filename) has room and ellipsizes gracefully */
+.left-pane input[type="file"] {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}

@@ -326,6 +326,14 @@ body {
 /* Global sizing stability */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Thin separator below the Mode field to distinguish from other inputs */
+.left-pane .field-sep {
+  height: 1px;
+  background: var(--border);
+  border: 0;
+  margin: 6px 0 12px 0;
+}
+
 /* ==============================
    File input: icon-only trigger
    ==============================

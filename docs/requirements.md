@@ -262,7 +262,10 @@ Ok, I would like for the native file picker input to not show the text "Choose F
 file-open Icon.  I also want it to be placed to the entirely to the left of the file name box with enough padding to 
 prevent it from obscuring the contents of the file name box.
 ---------------------
-
+I would like to have a thin horizontal rule or seperator beneath both "Mode" and its input box to make them visually 
+distinct from the other input options.  The file name box is hidden when mode 'Local File is not selected. I would 
+like it to remain visible at all times. 
+---------------------
 
 
 

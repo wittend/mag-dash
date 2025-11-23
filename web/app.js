@@ -158,7 +158,8 @@ class SourcePane {
     const urlInput = h('input', { type: 'url', placeholder: 'wss://example/ws' });
     // Allow all file extensions by default (no accept attribute)
     const fileInput = h('input', { type: 'file' });
-    fileInput.style.display = 'none';
+    // Keep file input visible at all times per request
+    fileInput.style.display = 'block';
     const skipInput = h('input', { type: 'number', min: '0', value: '0', size: '3', inputmode: 'numeric', class: 'w-ch-3' });
     const deviceInput = h('input', { type: 'text', placeholder: '/dev/ttyUSB0' });
 
@@ -180,13 +181,11 @@ class SourcePane {
     // Removed: Recent files dropdown UI per request. Keeping file history storage in place for potential future use.
 
     modeSel.addEventListener('change', () => {
+      // Update mode, but do not hide any inputs; all remain visible
       this.mode = modeSel.value;
-      const isFile = this.mode === 'file';
-      // Keep WebSocket URL and Device path inputs visible at all times
       urlInput.style.display = 'block';
       deviceInput.style.display = 'block';
-      // Toggle only the file input by mode
-      fileInput.style.display = isFile ? 'block' : 'none';
+      fileInput.style.display = 'block';
     });
 
     const connectBtn = h('button', { class: 'btn primary' }, h('span', { class: 'ti ti-plug-connected' }), ' Connect');
@@ -204,6 +203,8 @@ class SourcePane {
         h('label', {}, 'Mode'),
         modeSel
       ),
+      // Thin separator to visually distinguish the mode selector from other inputs
+      h('div', { class: 'field-sep', 'aria-hidden': 'true' }),
       h('div', { class: 'field' },
         h('label', {}, 'WebSocket URL'),
         urlInput, urlDataList

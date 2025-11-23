@@ -166,7 +166,6 @@ class SourcePane {
 
     const connectBtn = h('button', { class: 'btn primary' }, h('span', { class: 'ti ti-plug-connected' }), ' Connect');
     const abandonBtn = h('button', { class: 'btn' }, h('span', { class: 'ti ti-trash' }), ' Abandon');
-    const collapseBtn = h('button', { class: 'btn', title: 'Hide config (toggle)' }, h('span', { class: 'ti ti-chevron-left' }), ' Hide');
 
     // Inline SVG spinner (hidden by default); shown during local file loading
     const spinner = h('svg', { class: 'spinner', viewBox: '0 0 50 50', 'aria-hidden': 'true' },
@@ -174,17 +173,40 @@ class SourcePane {
     );
 
     const formId = `form-${this.id}`;
+    // Clear history small buttons (compact variant)
+    const clearBtn = (title, onClick) =>
+      h('button', { class: 'icon-btn icon-btn--sm clear-btn', title, 'aria-label': title, onclick: onClick },
+        h('span', { class: 'ti ti-x', 'aria-hidden': 'true' })
+      );
+
+    const clearWs = () => { localStorage.removeItem(LS_HIST_WS); populateDataList(urlDataList, []); };
+    const clearFiles = () => { localStorage.removeItem(LS_HIST_FILES); refreshRecentFiles(); };
+    const clearDev = () => { localStorage.removeItem(LS_HIST_DEV); populateDataList(devDataList, []); };
+
     const form = h('div', { class: 'card left-pane', id: formId },
-      h('div', { class: 'field' }, h('label', {}, 'Mode'), modeSel),
-      h('div', { class: 'field' }, h('label', {}, 'WebSocket URL'), urlInput, urlDataList),
-      h('div', { class: 'field' }, h('label', {}, 'Local file'), fileInput, recentFilesWrap),
-      h('div', { class: 'field' }, h('label', {}, 'Device path'), deviceInput, devDataList),
+      h('div', { class: 'field' },
+        h('label', {}, 'Mode'),
+        modeSel
+      ),
+      h('div', { class: 'field' },
+        h('label', {}, 'WebSocket URL'),
+        clearBtn('Clear WebSocket URL history', clearWs),
+        urlInput, urlDataList
+      ),
+      h('div', { class: 'field' },
+        h('label', {}, 'Local file'),
+        clearBtn('Clear recent file names', clearFiles),
+        fileInput, recentFilesWrap
+      ),
+      h('div', { class: 'field' },
+        h('label', {}, 'Device path'),
+        clearBtn('Clear device path history', clearDev),
+        deviceInput, devDataList
+      ),
       h('div', { class: 'field' }, h('label', {}, 'Skip header lines'), skipInput),
-      h('div', { class: 'row' }, abandonBtn, connectBtn, spinner, collapseBtn),
+      h('div', { class: 'row' }, abandonBtn, connectBtn, spinner),
     );
-    // Accessibility: tie the collapse button to the form it controls
-    collapseBtn.setAttribute('aria-controls', formId);
-    collapseBtn.setAttribute('aria-expanded', 'true');
+    // Note: per-pane Hide button removed; use the top-bar toggle or keyboard shortcut instead.
 
     // Right: charts
     const charts = h('div', { class: 'charts right-pane' },
@@ -313,13 +335,9 @@ class SourcePane {
 
     abandonBtn.addEventListener('click', () => this.removeCb(this));
 
-    collapseBtn.addEventListener('click', () => {
-      this.setCollapsed(!this.collapsed);
-    });
-
     exportBtn.addEventListener('click', () => this.exportJSONL());
 
-    this.elements = { wrap, tableBody: table.querySelector('tbody'), form, charts, splitter, connectBtn, spinner, collapseBtn };
+    this.elements = { wrap, tableBody: table.querySelector('tbody'), form, charts, splitter, connectBtn, spinner };
     // Ensure initial collapse state is reflected
     this.updateCollapseUI();
     return wrap;
@@ -366,7 +384,6 @@ class SourcePane {
   updateCollapseUI() {
     const wrap = this.elements?.wrap;
     const form = this.elements?.form;
-    const collapseBtn = this.elements?.collapseBtn;
     if (!wrap || !form) return;
     // Toggle class on the panel; grid CSS hides left-pane when collapsed
     wrap.classList.toggle('collapsed', this.collapsed);
@@ -381,21 +398,8 @@ class SourcePane {
         contentEl.style.setProperty('--left-width', `${desired}px`);
       }
     }
-    if (collapseBtn) {
-      if (this.collapsed) {
-        collapseBtn.title = 'Show config (toggle)';
-        collapseBtn.innerHTML = '';
-        collapseBtn.append(h('span', { class: 'ti ti-chevron-right' }), ' Show');
-        collapseBtn.setAttribute('aria-expanded', 'false');
-      } else {
-        collapseBtn.title = 'Hide config (toggle)';
-        collapseBtn.innerHTML = '';
-        collapseBtn.append(h('span', { class: 'ti ti-chevron-left' }), ' Hide');
-        collapseBtn.setAttribute('aria-expanded', 'true');
-      }
-      // Ensure aria-controls points to the current form id
-      if (form.id) collapseBtn.setAttribute('aria-controls', form.id);
-    }
+    // Note: per-pane collapse button has been removed; only the top-bar button and
+    // keyboard shortcut control collapse. Nothing to update here for a missing button.
     // Notify app so global toggle can reflect state
     try {
       window.dispatchEvent(new CustomEvent('magdash:collapsed', { detail: { id: this.id, collapsed: this.collapsed } }));

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
 // Simple Deno HTTP server to host the dashboard SPA from the ./web folder
 // and provide a couple of utility endpoints.
 

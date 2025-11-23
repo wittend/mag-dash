@@ -1,5 +1,27 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // MQTT loader: prefer local vendored ESM bundle (offline), fall back to CDN when missing.
 // The vendored file is produced by scripts/vendor_mqtt.ts → /web/vendor/mqtt/mqtt.bundle.mjs
+// Strict offline mode: when enabled, the app must not fetch any assets from the internet.
+// Resolution order (first match wins):
+// 1) URL query param: ?strict_offline=1
+// 2) localStorage key: magdash.strict_offline = "1"
+// 3) global flag: globalThis.MAGDASH_STRICT_OFFLINE === true
+function isStrictOffline() {
+  try {
+    const url = new URL(location.href);
+    const q = url.searchParams.get('strict_offline');
+    if (q === '1' || q === 'true' || q === 'on') return true;
+  } catch {}
+  try {
+    const ls = localStorage.getItem('magdash.strict_offline');
+    if (ls === '1' || ls === 'true' || ls === 'on') return true;
+  } catch {}
+  try {
+    if (globalThis && globalThis.MAGDASH_STRICT_OFFLINE === true) return true;
+  } catch {}
+  return false;
+}
+
 let _mqttLoadPromise = null;
 async function loadMqtt() {
   if (_mqttLoadPromise) return _mqttLoadPromise;
@@ -16,6 +38,10 @@ async function loadMqtt() {
     } catch (e) {
       // Ignore and try CDN
       // console.debug('Local MQTT bundle not found, will try CDN', e);
+    }
+    // In strict offline mode, do NOT attempt CDN fallback
+    if (isStrictOffline()) {
+      throw new Error('Strict offline mode is enabled and the local MQTT bundle was not usable. Ensure /web/vendor/mqtt/mqtt.bundle.mjs exists or disable strict offline.');
     }
     // Fallback to CDN (online)
     const cdn = await import('https://esm.sh/mqtt@5?bundle');

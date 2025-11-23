@@ -12,4 +12,17 @@ Contents
 
    overview
    requirements
+   installation
+   deployment
+   protocols
+   strict_offline
+   troubleshooting
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Reference
+
+   changelog
+   license
+   acknowledgments
 

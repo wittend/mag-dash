@@ -1,7 +1,9 @@
 <!--suppress HtmlDeprecatedAttribute -->
 <p align="center">
-  <!-- img src="docs/Strawman_Magnetometer_Dashboard.jpg" alt="mag-dash screenshot" width="700" / -->
-  <img src="docs/Screenshot-2.png" alt="mag-dash screenshot" width="700" />
+  <img src="docs/Screenshot-3-dark.png" alt="mag-dash screenshot" width="700" />
+</p>
+<p align="center">
+  <img src="docs/Screenshot-3-light.png" alt="mag-dash screenshot" width="700" />
 </p>
 
 mag-dash

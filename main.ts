@@ -16,7 +16,7 @@ function log(...args: unknown[]) {
 export function contentType(pathname: string): string {
   if (pathname.endsWith(".html")) return "text/html; charset=utf-8";
   if (pathname.endsWith(".css")) return "text/css; charset=utf-8";
-  if (pathname.endsWith(".js")) return "text/javascript; charset=utf-8";
+  if (pathname.endsWith(".js") || pathname.endsWith(".mjs")) return "text/javascript; charset=utf-8";
   if (pathname.endsWith(".svg")) return "image/svg+xml";
   if (pathname.endsWith(".ico")) return "image/x-icon";
   if (pathname.endsWith(".json")) return "application/json; charset=utf-8";

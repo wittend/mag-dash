@@ -1,9 +1,39 @@
+// MQTT loader: prefer local vendored ESM bundle (offline), fall back to CDN when missing.
+// The vendored file is produced by scripts/vendor_mqtt.ts → /web/vendor/mqtt/mqtt.bundle.mjs
+let _mqttLoadPromise = null;
+async function loadMqtt() {
+  if (_mqttLoadPromise) return _mqttLoadPromise;
+  _mqttLoadPromise = (async () => {
+    // Try local first (offline)
+    try {
+      const mod = await import('/web/vendor/mqtt/mqtt.bundle.mjs');
+      // esm.sh default export provides .connect
+      const connect = (mod && (mod.connect || (mod.default && mod.default.connect))) || null;
+      if (typeof connect === 'function') return { mqttConnect: connect };
+      // Some bundles export namespace as default
+      if (mod && mod.default && typeof mod.default.connect === 'function') return { mqttConnect: mod.default.connect };
+      console.warn('Local MQTT module loaded but no connect() export found. Falling back to CDN.');
+    } catch (e) {
+      // Ignore and try CDN
+      // console.debug('Local MQTT bundle not found, will try CDN', e);
+    }
+    // Fallback to CDN (online)
+    const cdn = await import('https://esm.sh/mqtt@5?bundle');
+    const connect = (cdn && (cdn.connect || (cdn.default && cdn.default.connect))) || null;
+    if (typeof connect !== 'function') throw new Error('Failed to resolve mqtt.connect from CDN bundle');
+    return { mqttConnect: connect };
+  })();
+  return _mqttLoadPromise;
+}
+
 const LS_KEY = "magdash.config.v1";
 const LS_PANES_KEY = "magdash.panes.v1"; // persist per-tab state (id, title, splitter width)
 // Recent history keys (last 10)
 const LS_HIST_WS = "magdash.history.ws.v1";
 const LS_HIST_FILES = "magdash.history.files.v1";
 const LS_HIST_DEV = "magdash.history.dev.v1";
+const LS_HIST_MQTT_HOST = "magdash.history.mqtt.host.v1";
+const LS_HIST_MQTT_TOPIC = "magdash.history.mqtt.topic.v1";
 
 function loadConfig() {
   try {
@@ -92,8 +122,9 @@ class SourcePane {
     this.firstUseCb = firstUseCb;
     this.samples = [];
     this.ws = null;
+    this.mqtt = null;
     this.connected = false;
-    this.mode = 'ws'; // 'ws' or 'file'
+    this.mode = 'ws'; // 'ws' | 'file' | 'device' | 'mqtt'
     this._used = false;
     this.collapsed = false; // whether the left config pane is hidden
   }
@@ -154,6 +185,7 @@ class SourcePane {
       h('option', { value: 'ws' }, 'WebSocket URL'),
       h('option', { value: 'file' }, 'Local file'),
       h('option', { value: 'device' }, 'Local Device'),
+      h('option', { value: 'mqtt' }, 'MQTT Broker'),
     );
     const urlInput = h('input', { type: 'url', placeholder: 'wss://example/ws' });
     // Allow all file extensions by default (no accept attribute)
@@ -162,14 +194,26 @@ class SourcePane {
     fileInput.style.display = 'block';
     const skipInput = h('input', { type: 'number', min: '0', value: '0', size: '3', inputmode: 'numeric', class: 'w-ch-3' });
     const deviceInput = h('input', { type: 'text', placeholder: '/dev/ttyUSB0' });
+    // MQTT inputs
+    const mqttHostInput = h('input', { type: 'text', placeholder: 'broker.example.com' });
+    const mqttPortInput = h('input', { type: 'number', min: '1', max: '65535', value: '8081', inputmode: 'numeric', class: 'w-ch-3' });
+    const mqttPathInput = h('input', { type: 'text', value: '/mqtt' });
+    const mqttTopicInput = h('input', { type: 'text', value: 'mag-usb' });
+    const mqttTlsInput = h('input', { type: 'checkbox' });
 
     // Attach datalists for URL and device histories
     const urlListId = `dl-ws-${this.id}`;
     const devListId = `dl-dev-${this.id}`;
+    const mqttHostListId = `dl-mqtt-host-${this.id}`;
+    const mqttTopicListId = `dl-mqtt-topic-${this.id}`;
     const urlDataList = h('datalist', { id: urlListId });
     const devDataList = h('datalist', { id: devListId });
+    const mqttHostDataList = h('datalist', { id: mqttHostListId });
+    const mqttTopicDataList = h('datalist', { id: mqttTopicListId });
     urlInput.setAttribute('list', urlListId);
     deviceInput.setAttribute('list', devListId);
+    mqttHostInput.setAttribute('list', mqttHostListId);
+    mqttTopicInput.setAttribute('list', mqttTopicListId);
 
     const populateDataList = (dl, items) => {
       dl.innerHTML = '';
@@ -177,6 +221,8 @@ class SourcePane {
     };
     populateDataList(urlDataList, getHistory(LS_HIST_WS));
     populateDataList(devDataList, getHistory(LS_HIST_DEV));
+    populateDataList(mqttHostDataList, getHistory(LS_HIST_MQTT_HOST));
+    populateDataList(mqttTopicDataList, getHistory(LS_HIST_MQTT_TOPIC));
 
     // Removed: Recent files dropdown UI per request. Keeping file history storage in place for potential future use.
 
@@ -209,15 +255,42 @@ class SourcePane {
         h('label', {}, 'WebSocket URL'),
         urlInput, urlDataList
       ),
+      // Separator between WebSocket inputs and MQTT inputs
+      h('div', { class: 'field-sep', 'aria-hidden': 'true' }),
+      h('div', { class: 'field' },
+        h('label', {}, 'MQTT host'),
+        mqttHostInput, mqttHostDataList
+      ),
+      h('div', { class: 'field' },
+        h('label', {}, 'Port'),
+        mqttPortInput
+      ),
+      h('div', { class: 'field' },
+        h('label', {}, 'Path'),
+        mqttPathInput
+      ),
+      h('div', { class: 'field' },
+        h('label', {}, 'Topic'),
+        mqttTopicInput, mqttTopicDataList
+      ),
+      h('div', { class: 'field' },
+        h('label', {}, 'Use TLS (wss)'),
+        mqttTlsInput
+      ),
+      // Separator between MQTT inputs and Local file inputs
+      h('div', { class: 'field-sep', 'aria-hidden': 'true' }),
       h('div', { class: 'field' },
         h('label', {}, 'Local file'),
         fileInput
       ),
+      // Move 'Skip header lines' above Local Device and add a separator before Device
+      h('div', { class: 'field' }, h('label', {}, 'Skip header lines'), skipInput),
+      // Separator between Skip header lines and Local Device inputs
+      h('div', { class: 'field-sep', 'aria-hidden': 'true' }),
       h('div', { class: 'field' },
         h('label', {}, 'Device path'),
         deviceInput, devDataList
       ),
-      h('div', { class: 'field' }, h('label', {}, 'Skip header lines'), skipInput),
       h('div', { class: 'row' }, connectBtn, spinner),
     );
     // Note: per-pane Hide button removed; use the top-bar toggle or keyboard shortcut instead.
@@ -347,6 +420,37 @@ class SourcePane {
         pushHistory(LS_HIST_DEV, path);
         populateDataList(devDataList, getHistory(LS_HIST_DEV));
         alert('Local Device mode UI is enabled. Browsers cannot open device paths directly. We can add Web Serial support or a Deno proxy in the next step. Entered path: ' + path);
+      } else if (this.mode === 'mqtt') {
+        const host = mqttHostInput.value.trim();
+        const port = parseInt(mqttPortInput.value || '0', 10);
+        const path = mqttPathInput.value.trim() || '/mqtt';
+        const topic = mqttTopicInput.value.trim() || 'mag-usb';
+        const useTls = !!mqttTlsInput.checked;
+        if (!host) return alert('Enter an MQTT broker host');
+        if (!port || port < 1 || port > 65535) return alert('Enter a valid port (1-65535)');
+        if (!topic) return alert('Enter a topic');
+
+        let username = undefined;
+        let password = undefined;
+        if (useTls) {
+          // Simple popups to collect credentials when using TLS
+          username = window.prompt('MQTT username (leave blank for none):') || undefined;
+          if (username !== undefined) {
+            const pw = window.prompt('MQTT password (leave blank for none):');
+            password = pw !== null && pw !== '' ? pw : undefined;
+          }
+        }
+
+        const scheme = useTls ? 'wss' : 'ws';
+        const wsUrl = `${scheme}://${host}:${port}${path.startsWith('/') ? path : ('/' + path)}`;
+
+        // Save histories for host and topic
+        pushHistory(LS_HIST_MQTT_HOST, host);
+        pushHistory(LS_HIST_MQTT_TOPIC, topic);
+        populateDataList(mqttHostDataList, getHistory(LS_HIST_MQTT_HOST));
+        populateDataList(mqttTopicDataList, getHistory(LS_HIST_MQTT_TOPIC));
+
+        await this.connectMqtt({ url: wsUrl, topic, username, password });
       }
     });
 
@@ -688,6 +792,63 @@ class SourcePane {
       try { reader.releaseLock?.(); } catch {}
       if (connectBtn) { connectBtn.disabled = prevBtnDisabled ?? false; connectBtn.textContent = prevBtnText ?? 'Connect'; }
       if (spinner) { spinner.style.display = 'none'; }
+    }
+  }
+
+  async connectMqtt({ url, topic, username, password }) {
+    try {
+      // Close any prior connections
+      if (this.ws) { try { this.ws.close(); } catch {} this.ws = null; }
+      if (this.mqtt) { try { this.mqtt.end(true); } catch {} this.mqtt = null; }
+
+      // Lazy-load mqtt connect (prefers local vendored copy; falls back to CDN)
+      const { mqttConnect } = await loadMqtt();
+
+      const u = new URL(url);
+      const isSecure = u.protocol === 'wss:';
+      const client = mqttConnect(url, {
+        clean: true,
+        keepalive: 30,
+        connectTimeout: 10_000,
+        protocolVersion: 5,
+        username: username || undefined,
+        password: password || undefined,
+      });
+      this.mqtt = client;
+      this.connected = false;
+
+      client.on('connect', () => {
+        this.connected = true;
+        try { this.setTitle(`${u.hostname}:${u.port || (isSecure ? '443' : '80')}/${topic}`); } catch {}
+        client.subscribe(topic, { qos: 0 }, (err) => {
+          if (err) console.error('MQTT subscribe error', err);
+        });
+      });
+
+      client.on('message', (_t, payload) => {
+        try {
+          // payload is Buffer/Uint8Array
+          const text = new TextDecoder().decode(payload);
+          // Accept single JSON object per message; ignore multi-line here
+          if (!text.trim()) return;
+          const sample = parseSample(text);
+          this.addSample(sample);
+        } catch (e) {
+          console.warn('Bad MQTT message:', e);
+        }
+      });
+
+      client.on('error', (err) => {
+        console.error('MQTT error', err);
+        this.connected = false;
+      });
+
+      client.on('close', () => {
+        this.connected = false;
+      });
+    } catch (e) {
+      console.error('Failed to connect MQTT', e);
+      alert('Failed to connect to MQTT broker. See console for details.');
     }
   }
 

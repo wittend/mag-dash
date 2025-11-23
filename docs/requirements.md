@@ -233,14 +233,17 @@ Load http://127.0.0.1:8000/ and/or http://localhost:8080/ and let me know if the
 If it still doesn’t render, paste any Console/Network errors from DevTools.
 With that info I can finalize either a small binding tweak (IPv6) or address any remaining client‑side hiccup immediately.
 
-
 ---------------------
 
 Ok, This project seems back on track but there are some important changes that I need. - First, I want to remove the 
 buttons in the config page that clear the history lists for the 'WebSocket URL', 'File path', and 'Device path' entry boxes.
 
+---------------------
+
 Ok, next I want to place a small icon after the source name, possibly just a small 'x', in the Tab of each opened 
 source. This button will be the equivalent to the 'abandon' button on the config page for just that tab page. 
+
+---------------------
 
 Ok, but the close/abandon icon/event should not be placed into the tab labeled 'New Source".  
 That tab should always be present.
@@ -262,10 +265,62 @@ Ok, I would like for the native file picker input to not show the text "Choose F
 file-open Icon.  I also want it to be placed to the entirely to the left of the file name box with enough padding to 
 prevent it from obscuring the contents of the file name box.
 ---------------------
-I would like to have a thin horizontal rule or seperator beneath both "Mode" and its input box to make them visually 
+I would like to have a thin horizontal rule or separator beneath both "Mode" and its input box to make them visually 
 distinct from the other input options.  The file name box is hidden when mode 'Local File is not selected. I would 
 like it to remain visible at all times. 
 ---------------------
+I want to add another option to the 'Mode' selector.  It should accept the address of a MQTT Broker (Either on the 
+local host or remote).  It requires the ability to specify a port number to use.
+---------------------
+I want to add another option to the 'Mode' selector.  This option should be "MQTT Broker".  It should 
+enable an input field similar to that used by "Websocket URL".  It should accept the address of an 
+MQTT Broker (either on the local host or remotely).  It requires the ability to specify a port number to use.
+---------------------
+Junie questions:
+
+Thanks — I’ve drafted a plan to add the new “MQTT Broker” mode. Before I implement it, I need a few details to ensure it works exactly as you expect:
+Transport and URL shape
+1)
+Browsers can only reach MQTT over WebSocket (ws:// or wss://), not raw TCP. Is MQTT over WebSocket acceptable? (Typical brokers expose ws/wss on a dedicated port, often path “/mqtt”.)
+2)
+Do you want the inputs to be split as Host + Port (+ optional Path), or a single full WebSocket URL field? You asked to be able to specify a port; I can do either:
+◦
+Option A: separate fields: Host (e.g., test.mosquitto.org), Port (e.g., 8081), Path (default “/mqtt”).
+◦
+Option B: one full URL: ws(s)://host:port/path.
+Topic and authentication 3) What topic should we subscribe to? Single topic input okay? (We can support wildcards later.) 4) Any authentication? Username/password? Custom clientId? TLS (wss) only or allow ws too?
+Payload format 5) Are messages JSON objects matching the existing schema consumed by WebSocket/file modes (fields: ts, x, y, z, optional t/temp)? If different, please share a sample payload.
+UI details 6) Should I add history suggestions (datalist) for Broker Host and Topic like we do for WebSocket URL and Device path? 7) Keep all inputs visible at all times (consistent with the current design), correct?
+Once I have these answers, I’ll implement the mode, wire the Connect flow, and verify with a public test broker.
+
+---------------------
+OK , for 1) we'll restrict it to ws:/wss:.  MQTT over WsbSocket is fine. 2) individual address components 
+seem better to me. (Option A).  The topic for now should just be "mag-usb".  
+I would like to have a popup for username/password when using a TLS connection. Please enable 
+history suggestions. Do keep all inputs visible for now (besides username/password)
+---------------------
+OOPS, after server restart and hard refresh, the page doesn't load properly and I get the following error:
+app.js:1 Uncaught SyntaxError: The requested module 'https://esm.sh/mqtt@5?bundle' does not provide an export 
+named 'connect' (at app.js:1:10)
+
+---------------------
+I would like you to vendor the needed support and make it available for local/offline use.
+
+---------------------
+I would like to add a separator between the WebSockets input fields and those for MQTT.  
+
+---------------------
+I would like to add a separator between the last MQTT input and those for 'Local File'.
+The inputs related to 'Skip header lines' should be moved above those for 'Local Device'
+I would like to add a separator between the 'skip header lines' input and those for 'Local Device'.
+---------------------
+
+
+
+
+
+
+
 
 
 

@@ -3,6 +3,7 @@
     "dev": "deno run --allow-net --allow-read --allow-env --watch=main.ts,web main.ts",
     "test": "deno test -A",
     "vendor:tabler": "deno run -A scripts/vendor_tabler_icons.ts 3.35.0",
+    "vendor:mqtt": "deno run -A scripts/vendor_mqtt.ts 5",
     "verify:assets": "deno run -A scripts/verify_assets.ts 3.35.0",
     "dev:8080": "PORT=8080 deno run --allow-net --allow-read --allow-env --watch=main.ts,web main.ts"
   },

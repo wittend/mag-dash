@@ -25,7 +25,9 @@ async function ensureDir(url: URL) {
 
 async function download(url: string): Promise<string> {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+  }
   return await res.text();
 }
 
@@ -39,7 +41,10 @@ async function tryFetchBundle(): Promise<{ code: string; from: string }> {
       console.log(`Trying MQTT bundle: ${u}`);
       const code = await download(u);
       // Basic sanity: ensure the code looks like an ES module
-      if (!/export\s+\{|export\s+default|Object\.defineProperty\(exports,\s*"__esModule"/.test(code)) {
+      if (
+        !/export\s+\{|export\s+default|Object\.defineProperty\(exports,\s*"__esModule"/
+          .test(code)
+      ) {
         console.warn("Fetched code may not be an ESM bundle; keeping anyway.");
       }
       return { code, from: u };
@@ -56,7 +61,7 @@ async function fetchLicense(): Promise<string> {
     "https://raw.githubusercontent.com/mqttjs/MQTT.js/master/LICENSE.md",
     "https://raw.githubusercontent.com/mqttjs/MQTT.js/main/LICENSE.md",
     // npm registry mirror
-    `https://unpkg.com/mqtt@${VERSION}/LICENSE` ,
+    `https://unpkg.com/mqtt@${VERSION}/LICENSE`,
   ];
   for (const url of LICENSE_CANDIDATES) {
     try {

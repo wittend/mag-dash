@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { contentType, appHandler } from "./main.ts";
+import { appHandler, contentType } from "./main.ts";
 
 Deno.test("contentType maps common extensions", () => {
   assertEquals(contentType("/index.html"), "text/html; charset=utf-8");
@@ -22,7 +22,10 @@ Deno.test("serves common assets with correct content types", async () => {
 
   const r2 = await appHandler(req("/web/app.js"));
   assertEquals(r2.status, 200);
-  assertEquals(r2.headers.get("content-type"), "text/javascript; charset=utf-8");
+  assertEquals(
+    r2.headers.get("content-type"),
+    "text/javascript; charset=utf-8",
+  );
 
   const r3 = await appHandler(req("/web/icon.svg"));
   assertEquals(r3.status, 200);
@@ -30,18 +33,24 @@ Deno.test("serves common assets with correct content types", async () => {
 });
 
 Deno.test("serves vendored tabler CSS and font with correct types", async () => {
-  const css = await appHandler(req("/web/vendor/tabler/icons-webfont/3.35.0/tabler-icons.min.css"));
+  const css = await appHandler(
+    req("/web/vendor/tabler/icons-webfont/3.35.0/tabler-icons.min.css"),
+  );
   assertEquals(css.status, 200);
   assertEquals(css.headers.get("content-type"), "text/css; charset=utf-8");
 
-  const woff2 = await appHandler(req("/web/vendor/tabler/icons-webfont/3.35.0/fonts/tabler-icons.woff2"));
+  const woff2 = await appHandler(
+    req("/web/vendor/tabler/icons-webfont/3.35.0/fonts/tabler-icons.woff2"),
+  );
   assertEquals(woff2.status, 200);
   assertEquals(woff2.headers.get("content-type"), "font/woff2");
 });
 
 Deno.test("SPA fallback only for HTML navigations without extension", async () => {
   // HTML navigation (no extension) should serve index.html (200)
-  const nav = await appHandler(req("/some/route", { headers: { accept: "text/html" } }));
+  const nav = await appHandler(
+    req("/some/route", { headers: { accept: "text/html" } }),
+  );
   assertEquals(nav.status, 200);
   assertEquals(nav.headers.get("content-type"), "text/html; charset=utf-8");
 

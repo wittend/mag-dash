@@ -1,0 +1,6 @@
+Changes that I want made:
+1) make all fonts i used in the Palette consistent with those used between the labels and the feild contents.
+2) Change the label and the name of the associated input field from 'Mode' to 'Data source'.
+3) disable all input fields until a Data Source is selected.
+4) when a 'data source' is selected only enable the input fields that relate to that type of source.
+5) when parsing input data in JSON format, use the data tagged as either "rt", "T", or "t" as temperature data, whichever is encountered first in the input.

@@ -5,14 +5,24 @@
 // Usage: deno run -A scripts/verify_assets.ts [version]
 
 const VERSION = Deno.args[0] || "3.35.0";
-const TABLER_BASE = new URL(`../web/vendor/tabler/icons-webfont/${VERSION}/`, import.meta.url);
-const MQTT_BUNDLE = new URL(`../web/vendor/mqtt/mqtt.bundle.mjs`, import.meta.url);
+const TABLER_BASE = new URL(
+  `../web/vendor/tabler/icons-webfont/${VERSION}/`,
+  import.meta.url,
+);
+const MQTT_BUNDLE = new URL(
+  `../web/vendor/mqtt/mqtt.bundle.mjs`,
+  import.meta.url,
+);
 
 type Expect = { path: string; minBytes?: number; contentType?: string };
 
 const EXPECT: Expect[] = [
   { path: `tabler-icons.min.css`, minBytes: 1024, contentType: "text/css" },
-  { path: `fonts/tabler-icons.woff2`, minBytes: 1000, contentType: "font/woff2" },
+  {
+    path: `fonts/tabler-icons.woff2`,
+    minBytes: 1000,
+    contentType: "font/woff2",
+  },
   { path: `fonts/tabler-icons.woff`, minBytes: 1000, contentType: "font/woff" },
   // TTF is optional; include if present
 ];
@@ -59,13 +69,17 @@ async function main() {
   } else {
     const info = await Deno.stat(MQTT_BUNDLE);
     if (info.size < 1024) {
-      console.error(`MQTT bundle too small: ${MQTT_BUNDLE.pathname} (${info.size} bytes)`);
+      console.error(
+        `MQTT bundle too small: ${MQTT_BUNDLE.pathname} (${info.size} bytes)`,
+      );
       ok = false;
     }
   }
 
   if (!ok) {
-    console.error("Verification failed. Try re-vendoring: deno task vendor:tabler");
+    console.error(
+      "Verification failed. Try re-vendoring: deno task vendor:tabler",
+    );
     Deno.exit(1);
   }
   console.log("OK: Vendored assets present and non-zero size.");

@@ -8,6 +8,7 @@
 - A modern browser (Chrome, Edge, Firefox, or Safari)
 
 Optional (for building docs locally):
+
 - Python 3.10+ and `pip`
 
 ## Get the code
@@ -33,7 +34,8 @@ Then open `http://localhost:8000` in your browser.
   PORT=8000 deno run -A main.ts
   ```
 
-- Optionally place it behind a reverse proxy (nginx, Caddy, Traefik) to terminate TLS and add headers like CSP.
+- Optionally place it behind a reverse proxy (nginx, Caddy, Traefik) to
+  terminate TLS and add headers like CSP.
 
 ## Building the documentation locally
 

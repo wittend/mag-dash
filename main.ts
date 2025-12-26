@@ -30,7 +30,9 @@ function log(..._args: unknown[]) {
 export function contentType(pathname: string): string {
   if (pathname.endsWith(".html")) return "text/html; charset=utf-8";
   if (pathname.endsWith(".css")) return "text/css; charset=utf-8";
-  if (pathname.endsWith(".js") || pathname.endsWith(".mjs")) return "text/javascript; charset=utf-8";
+  if (pathname.endsWith(".js") || pathname.endsWith(".mjs")) {
+    return "text/javascript; charset=utf-8";
+  }
   if (pathname.endsWith(".svg")) return "image/svg+xml";
   if (pathname.endsWith(".ico")) return "image/x-icon";
   if (pathname.endsWith(".json")) return "application/json; charset=utf-8";
@@ -41,7 +43,10 @@ export function contentType(pathname: string): string {
   return "application/octet-stream";
 }
 
-async function serveStatic(pathname: string, opts?: { spaFallback?: boolean }): Promise<Response> {
+async function serveStatic(
+  pathname: string,
+  opts?: { spaFallback?: boolean },
+): Promise<Response> {
   // Normalize and prevent directory traversal
   const safePath = pathname.replace(/^\/+/, "");
   if (safePath.includes("..")) {
@@ -57,10 +62,18 @@ async function serveStatic(pathname: string, opts?: { spaFallback?: boolean }): 
       "cache-control": "no-store",
     });
     // Log successful static serve in dev for diagnostics
-    log("serveStatic: 200", { pathname, resolved: url.pathname, type: headers.get("content-type") });
+    log("serveStatic: 200", {
+      pathname,
+      resolved: url.pathname,
+      type: headers.get("content-type"),
+    });
     return new Response(file, { headers });
   } catch (_err) {
-    log("serveStatic: miss", { pathname, resolved: url.pathname, spaFallback: !!opts?.spaFallback });
+    log("serveStatic: miss", {
+      pathname,
+      resolved: url.pathname,
+      spaFallback: !!opts?.spaFallback,
+    });
     if (opts?.spaFallback) {
       try {
         const indexUrl = new URL("index.html", WEB_ROOT);
@@ -83,46 +96,47 @@ async function serveStatic(pathname: string, opts?: { spaFallback?: boolean }): 
 }
 
 export async function appHandler(req: Request): Promise<Response> {
-    const { pathname } = new URL(req.url);
-    const accept = req.headers.get("accept") || "";
-    // Treat clean paths without an extension as HTML navigations even if Accept is */*
-    const noExt = !pathname.match(/\.[^./]+$/);
-    const isHtmlNavigation = req.method === "GET" && (accept.includes("text/html") || accept.includes("*/*")) && noExt;
-    log("request", { method: req.method, pathname, accept, isHtmlNavigation });
+  const { pathname } = new URL(req.url);
+  const accept = req.headers.get("accept") || "";
+  // Treat clean paths without an extension as HTML navigations even if Accept is */*
+  const noExt = !pathname.match(/\.[^./]+$/);
+  const isHtmlNavigation = req.method === "GET" &&
+    (accept.includes("text/html") || accept.includes("*/*")) && noExt;
+  log("request", { method: req.method, pathname, accept, isHtmlNavigation });
 
-    // health check
-    if (pathname === "/healthz") {
-      return new Response("ok", { headers: { "content-type": "text/plain" } });
+  // health check
+  if (pathname === "/healthz") {
+    return new Response("ok", { headers: { "content-type": "text/plain" } });
+  }
+
+  // simple server time endpoint
+  if (pathname === "/api/time") {
+    return Response.json({ now: new Date().toISOString() });
+  }
+
+  // static files (served from ./web)
+  // Normalize request path to a relative path under WEB_ROOT
+  if (
+    pathname === "/" ||
+    pathname.startsWith("/web/") ||
+    pathname.match(/\.(html|css|js|svg|ico|json|woff2?|ttf|eot|txt)$/)
+  ) {
+    let rel = "";
+    if (pathname === "/") {
+      rel = "index.html";
+    } else if (pathname.startsWith("/web/")) {
+      rel = pathname.slice(5); // strip leading "/web/"
+    } else {
+      rel = pathname.replace(/^\/+/, "");
     }
+    // For explicit asset requests, do not SPA-fallback; for "/" or clean navigations, allow fallback
+    const allowSpa = pathname === "/" || isHtmlNavigation;
+    log("route:static", { pathname, rel, allowSpa });
+    return await serveStatic(rel, { spaFallback: allowSpa });
+  }
 
-    // simple server time endpoint
-    if (pathname === "/api/time") {
-      return Response.json({ now: new Date().toISOString() });
-    }
-
-    // static files (served from ./web)
-    // Normalize request path to a relative path under WEB_ROOT
-    if (
-      pathname === "/" ||
-      pathname.startsWith("/web/") ||
-      pathname.match(/\.(html|css|js|svg|ico|json|woff2?|ttf|eot|txt)$/)
-    ) {
-      let rel = "";
-      if (pathname === "/") {
-        rel = "index.html";
-      } else if (pathname.startsWith("/web/")) {
-        rel = pathname.slice(5); // strip leading "/web/"
-      } else {
-        rel = pathname.replace(/^\/+/, "");
-      }
-      // For explicit asset requests, do not SPA-fallback; for "/" or clean navigations, allow fallback
-      const allowSpa = pathname === "/" || isHtmlNavigation;
-      log("route:static", { pathname, rel, allowSpa });
-      return await serveStatic(rel, { spaFallback: allowSpa });
-    }
-
-    // default static fallback
-    return await serveStatic(pathname, { spaFallback: isHtmlNavigation });
+  // default static fallback
+  return await serveStatic(pathname, { spaFallback: isHtmlNavigation });
 }
 
 if (import.meta.main) {

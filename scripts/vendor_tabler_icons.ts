@@ -11,7 +11,10 @@
 // - Save everything under web/vendor/tabler/icons-webfont/<version>/(tabler-icons.min.css + fonts/*)
 
 const VERSION = Deno.args[0] || "3.35.0";
-const BASE_DIR = new URL(`../web/vendor/tabler/icons-webfont/${VERSION}/`, import.meta.url);
+const BASE_DIR = new URL(
+  `../web/vendor/tabler/icons-webfont/${VERSION}/`,
+  import.meta.url,
+);
 const FONTS_DIR = new URL(`fonts/`, BASE_DIR);
 
 // Candidate CSS URLs to try (some registries keep CSS under /dist)
@@ -30,7 +33,9 @@ async function ensureDir(url: URL) {
 
 async function download(url: string): Promise<Uint8Array> {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+  }
   const buf = new Uint8Array(await res.arrayBuffer());
   return buf;
 }
@@ -52,7 +57,9 @@ function rewriteCss(css: string, mappings: Record<string, string>): string {
   return out;
 }
 
-function unique<T>(arr: T[]): T[] { return [...new Set(arr)]; }
+function unique<T>(arr: T[]): T[] {
+  return [...new Set(arr)];
+}
 
 async function main() {
   console.log(`Vendoring Tabler Icons webfont v${VERSION}...`);
@@ -75,7 +82,7 @@ async function main() {
   if (!cssBuf || !cssUrl) {
     throw new Error(
       `Failed to fetch Tabler Icons CSS for v${VERSION} from known CDNs. Tried:\n` +
-      CSS_CANDIDATES.map((u) => ` - ${u}`).join("\n"),
+        CSS_CANDIDATES.map((u) => ` - ${u}`).join("\n"),
     );
   }
   console.log(`Using CSS: ${cssUrl}`);
@@ -99,8 +106,10 @@ async function main() {
     }
     urlPairs.push({ literal, absolute });
   }
-  const fontPairs = urlPairs.filter(p => /\.(woff2?|ttf|eot)(\?|$)/.test(p.absolute));
-  const uniqueAbs = unique(fontPairs.map(p => p.absolute));
+  const fontPairs = urlPairs.filter((p) =>
+    /\.(woff2?|ttf|eot)(\?|$)/.test(p.absolute)
+  );
+  const uniqueAbs = unique(fontPairs.map((p) => p.absolute));
   if (!fontPairs.length) {
     console.warn("No font URLs detected. The CSS may have changed format.");
   }
@@ -125,7 +134,11 @@ async function main() {
 
   // 4) Rewrite and save CSS
   const rewritten = rewriteCss(cssText, mappings);
-  await writeFile(BASE_DIR, "tabler-icons.min.css", new TextEncoder().encode(rewritten));
+  await writeFile(
+    BASE_DIR,
+    "tabler-icons.min.css",
+    new TextEncoder().encode(rewritten),
+  );
 
   // 5) Write a small README with license pointer
   const readme = `Tabler Icons (webfont) v${VERSION}\n\n` +
